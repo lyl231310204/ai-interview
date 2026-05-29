@@ -1,53 +1,77 @@
 <template>
-  <div class="flex flex-col h-full bg-gray-50">
+  <div class="flex flex-col h-full">
     <!-- 消息列表 -->
-    <div class="flex-1 overflow-y-auto p-4 space-y-4" ref="messageContainer">
-      <MessageBubble v-for="msg in messages" :key="msg.id" :message="msg" />
-      
-      <!-- 流式输出 -->
-      <div v-if="isStreaming && streamContent" class="flex justify-start gap-3">
-        <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm">
-          AI
-        </div>
-        <div class="bg-white rounded-lg shadow-sm p-4 max-w-[70%]">
-          <div class="whitespace-pre-wrap">
-            {{ streamContent }}
-            <span class="inline-block w-2 h-4 bg-blue-500 animate-pulse ml-1"></span>
+    <div class="flex-1 overflow-y-auto px-4 py-5" ref="scrollRef">
+      <div class="max-w-2xl mx-auto flex flex-col gap-6">
+        <MessageBubble
+          v-for="(msg, idx) in messages"
+          :key="msg.id"
+          :message="msg"
+          :index="idx"
+          :streaming="false"
+        />
+
+        <!-- 流式输出中 -->
+        <div v-if="streaming && streamText" class="flex gap-2.5 max-w-[72%] self-start animate-msg-in">
+          <div class="w-8 h-8 rounded-lg bg-gray-100 border border-gray-100 flex items-center justify-center shrink-0 mt-0.5">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.6" stroke-linecap="round"><rect x="2" y="2" width="20" height="20" rx="5.5"/><circle cx="8.5" cy="10" r="1.5" fill="#6B7280"/><circle cx="15.5" cy="10" r="1.5" fill="#6B7280"/><path d="M8 16.5c1.8 2.2 5 2.6 7.5 1.3"/></svg>
+          </div>
+          <div>
+            <div class="bg-gray-100 text-gray-800 rounded-bl-sm rounded-xl px-4 py-3 text-sm leading-relaxed">
+              {{ streamText }}<span class="cursor-blink"></span>
+            </div>
           </div>
         </div>
-      </div>
-      
-      <!-- 加载中 -->
-      <div v-if="isLoading && !isStreaming" class="flex justify-start gap-3">
-        <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm">
-          AI
-        </div>
-        <div class="bg-white rounded-lg shadow-sm p-4">
-          <div class="flex gap-1">
-            <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
-            <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
-            <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></span>
+
+        <!-- 思考中 -->
+        <div v-if="loading && !streaming" class="flex gap-2.5 max-w-[72%] self-start animate-msg-in">
+          <div class="w-8 h-8 rounded-lg bg-gray-100 border border-gray-100 flex items-center justify-center shrink-0 mt-0.5">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.6" stroke-linecap="round"><rect x="2" y="2" width="20" height="20" rx="5.5"/><circle cx="8.5" cy="10" r="1.5" fill="#6B7280"/><circle cx="15.5" cy="10" r="1.5" fill="#6B7280"/><path d="M8 16.5c1.8 2.2 5 2.6 7.5 1.3"/></svg>
+          </div>
+          <div class="bg-gray-100 rounded-bl-sm rounded-xl px-4 py-3">
+            <div class="thinking-dots"><span></span><span></span><span></span></div>
           </div>
         </div>
       </div>
     </div>
-    
-    <!-- 输入区域 -->
-    <div v-if="canSend" class="bg-white border-t p-4">
-      <div class="flex gap-3">
-        <textarea v-model="inputMessage" @keydown.ctrl.enter="send"
+
+    <!-- 输入区 -->
+    <div v-if="canSend" class="border-t border-gray-100 bg-white px-4 py-3">
+      <div class="max-w-2xl mx-auto flex items-end gap-2.5 bg-gray-100 border border-gray-200 rounded-xl py-2 pl-4 pr-2 transition-all duration-200 focus-within:border-indigo-500 focus-within:bg-white focus-within:shadow-sm">
+        <textarea
+          ref="inputRef"
+          v-model="inputText"
           :placeholder="placeholder"
-          class="flex-1 border rounded-lg px-4 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-          rows="3" :disabled="disabled">
-        </textarea>
-        <button @click="send" :disabled="!inputMessage.trim() || disabled"
-          class="px-6 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-colors">
-          发送
+          :disabled="disabled"
+          rows="1"
+          class="flex-1 border-none bg-transparent text-base leading-relaxed resize-none outline-none py-1.5 text-gray-900 placeholder-gray-400 disabled:opacity-40"
+          style="max-height:80px;font-family:inherit;letter-spacing:-0.005em"
+          @keydown="handleKey"
+          @input="autoResize"
+        ></textarea>
+        <button
+          :disabled="!inputText.trim() || disabled"
+          class="w-10 h-10 shrink-0 rounded-lg flex items-center justify-center transition-all duration-200"
+          :class="inputText.trim() && !disabled ? 'bg-indigo-500 text-white shadow-md hover:scale-105 hover:bg-indigo-600 active:scale-95' : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
+          @click="send"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
         </button>
       </div>
-      <div class="text-xs text-gray-400 mt-2 text-center">
-        💡 提示：回答越详细具体，AI 面试官评分越准确
+      <div class="max-w-2xl mx-auto mt-2 text-xs text-gray-300 text-center">
+        <kbd class="inline-block px-1.5 py-0.5 rounded-sm border border-gray-200 bg-gray-100 text-xs text-gray-400 font-sans">Enter</kbd> 发送 ·
+        <kbd class="inline-block px-1.5 py-0.5 rounded-sm border border-gray-200 bg-gray-100 text-xs text-gray-400 font-sans">Shift</kbd> +
+        <kbd class="inline-block px-1.5 py-0.5 rounded-sm border border-gray-200 bg-gray-100 text-xs text-gray-400 font-sans">Enter</kbd> 换行
       </div>
+    </div>
+
+    <!-- 结束状态 -->
+    <div v-if="!canSend && !loading" class="border-t border-gray-100 bg-white p-8 text-center">
+      <div class="text-3xl mb-3">🎉</div>
+      <p class="text-gray-500 font-medium">面试已结束</p>
+      <p class="text-gray-400 text-sm mt-1">评估报告已生成</p>
     </div>
   </div>
 </template>
@@ -57,40 +81,58 @@ import MessageBubble from './MessageBubble.vue'
 
 interface Message {
   id: number
-  role: 'interviewer' | 'candidate' | 'system'
+  role: string
   content: string
   scores?: any
-  created_at: string
+  created_at?: string
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   messages: Message[]
-  isStreaming?: boolean
-  isLoading?: boolean
-  streamContent?: string
+  loading?: boolean
+  streaming?: boolean
+  streamText?: string
   canSend?: boolean
   disabled?: boolean
   placeholder?: string
-}>()
+}>(), {
+  placeholder: '输入你的回答…',
+})
 
-const emit = defineEmits<{
-  send: [content: string]
-}>()
+const emit = defineEmits<{ send: [content: string] }>()
 
-const inputMessage = ref('')
-const messageContainer = ref<HTMLElement>()
+const inputText = ref('')
+const inputRef = ref<HTMLTextAreaElement>()
+const scrollRef = ref<HTMLElement>()
 
 const send = () => {
-  if (!inputMessage.value.trim()) return
-  emit('send', inputMessage.value)
-  inputMessage.value = ''
+  const text = inputText.value.trim()
+  if (!text || props.disabled) return
+  emit('send', text)
+  inputText.value = ''
+  nextTick(() => { if (inputRef.value) inputRef.value.style.height = 'auto' })
 }
 
-watch(() => props.messages.length, () => {
+const autoResize = () => {
+  const el = inputRef.value
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = Math.min(el.scrollHeight, 80) + 'px'
+}
+
+const handleKey = (e: KeyboardEvent) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
+}
+
+const scrollToBottom = () => {
   nextTick(() => {
-    if (messageContainer.value) {
-      messageContainer.value.scrollTop = messageContainer.value.scrollHeight
+    if (scrollRef.value) {
+      scrollRef.value.scrollTo({ top: scrollRef.value.scrollHeight, behavior: 'smooth' })
     }
   })
-})
+}
+
+watch(() => props.messages.length, scrollToBottom)
+watch(() => props.streamText, scrollToBottom)
+onMounted(() => { setTimeout(scrollToBottom, 300) })
 </script>

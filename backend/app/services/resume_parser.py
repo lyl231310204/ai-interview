@@ -7,6 +7,13 @@ from PyPDF2 import PdfReader
 from docx import Document as DocxDocument
 
 
+class ResumeParser:
+    """简历解析器。"""
+
+    def parse(self, file_path: str) -> str:
+        return parse_resume(file_path)
+
+
 def parse_resume(file_path: str) -> str:
     """根据文件后缀解析简历，返回纯文本。"""
     ext = os.path.splitext(file_path)[1].lower()

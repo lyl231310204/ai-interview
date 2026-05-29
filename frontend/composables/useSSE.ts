@@ -5,75 +5,91 @@ export interface SSEMessage {
 
 export const useSSE = () => {
   const isConnected = ref(false)
-  const eventSource = ref<EventSource | null>(null)
-  
-  const connect = (url: string, onMessage: (message: SSEMessage) => void) => {
-    eventSource.value = new EventSource(url)
-    
-    eventSource.value.onopen = () => {
-      isConnected.value = true
-      console.log('SSE 连接已建立')
-    }
-    
-    eventSource.value.addEventListener('token', (event: MessageEvent) => {
-      try {
-        const data = JSON.parse(event.data)
-        onMessage({ type: 'token', data })
-      } catch (e) {
-        console.error('解析 token 事件失败:', e)
-      }
-    })
-    
-    eventSource.value.addEventListener('scores', (event: MessageEvent) => {
-      try {
-        const data = JSON.parse(event.data)
-        onMessage({ type: 'scores', data })
-      } catch (e) {
-        console.error('解析 scores 事件失败:', e)
-      }
-    })
-    
-    eventSource.value.addEventListener('done', (event: MessageEvent) => {
-      try {
-        const data = JSON.parse(event.data)
-        onMessage({ type: 'done', data })
-      } catch (e) {
-        console.error('解析 done 事件失败:', e)
-      }
-    })
-    
-    eventSource.value.addEventListener('error', (event: MessageEvent) => {
-      try {
-        const data = JSON.parse(event.data)
-        onMessage({ type: 'error', data })
-      } catch (e) {
-        console.error('解析 error 事件失败:', e)
-      }
-    })
-    
-    eventSource.value.onerror = (error) => {
-      console.error('SSE 连接错误:', error)
-      isConnected.value = false
-      onMessage({ 
-        type: 'error', 
-        data: { code: 40008, message: 'SSE 连接断开' } 
+  const abortController = ref<AbortController | null>(null)
+
+  const connect = async (
+    url: string,
+    body: any,
+    onMessage: (message: SSEMessage) => void,
+  ) => {
+    const controller = new AbortController()
+    abortController.value = controller
+    isConnected.value = true
+
+    try {
+      const config = useRuntimeConfig()
+      const response = await fetch(`${config.public.apiBase}${url}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
       })
-    }
-    
-    return () => disconnect()
-  }
-  
-  const disconnect = () => {
-    if (eventSource.value) {
-      eventSource.value.close()
-      eventSource.value = null
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error('Response body is not readable')
+      }
+
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed) continue
+
+          for (const eventLine of trimmed.split('\n')) {
+            const dataStr = eventLine.startsWith('data: ')
+              ? eventLine.slice(6)
+              : eventLine
+            try {
+              const parsed = JSON.parse(dataStr)
+              if (parsed.type === 'token') {
+                onMessage({ type: 'token', data: parsed })
+              } else if (parsed.type === 'scores') {
+                onMessage({ type: 'scores', data: parsed })
+              } else if (parsed.type === 'done') {
+                onMessage({ type: 'done', data: parsed })
+              } else if (parsed.type === 'error') {
+                onMessage({ type: 'error', data: parsed })
+              } else {
+                // 兼容纯文本 token
+                onMessage({ type: 'token', data: { content: parsed.content || dataStr } })
+              }
+            } catch {
+              // 非 JSON 数据，当作纯文本 token
+              if (dataStr && dataStr !== '[DONE]') {
+                onMessage({ type: 'token', data: { content: dataStr } })
+              }
+            }
+          }
+        }
+      }
+    } catch (err: any) {
+      if (err.name !== 'AbortError') {
+        onMessage({ type: 'error', data: { message: err.message || '连接断开' } })
+      }
+    } finally {
       isConnected.value = false
     }
   }
-  
-  return {
-    connect,
-    disconnect,
-    isConnected
+
+  const disconnect = () => {
+    abortController.value?.abort()
+    abortController.value = null
+    isConnected.value = false
   }
+
+  return { connect, disconnect, isConnected }
 }

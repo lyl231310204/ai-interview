@@ -7,11 +7,15 @@ from app.services.report_service import ReportService
 
 router = APIRouter()
 
+
 @router.get("/{interview_id}", response_model=ReportResponse)
-def generate_report(interview_id: int, db: Session = Depends(get_db)):
+async def get_report(interview_id: int, db: Session = Depends(get_db)):
     interview = db.query(Interview).filter(Interview.id == interview_id).first()
     if not interview:
         raise HTTPException(status_code=404, detail="面试不存在")
-    
-    report_service = ReportService(db)
-    return report_service.generate_report(interview_id)
+
+    service = ReportService(db)
+    try:
+        return await service.generate(interview_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))

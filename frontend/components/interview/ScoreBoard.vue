@@ -1,67 +1,53 @@
 <template>
-  <div class="bg-white rounded-lg shadow p-4">
-    <h3 class="font-semibold text-gray-800 mb-3">实时评分</h3>
-    
-    <div class="space-y-3">
-      <div v-for="dimension in dimensions" :key="dimension.key" class="space-y-1">
-        <div class="flex justify-between text-sm">
-          <span class="text-gray-600">{{ dimension.label }}</span>
-          <span class="font-medium" :class="getScoreColor(scores[dimension.key])">
-            {{ scores[dimension.key] || 0 }}/10
-          </span>
-        </div>
-        <div class="w-full bg-gray-200 rounded-full h-2">
-          <div class="h-2 rounded-full transition-all duration-500"
-               :class="getProgressColor(scores[dimension.key])"
-               :style="{ width: `${((scores[dimension.key] || 0) / 10) * 100}%` }">
-          </div>
-        </div>
-      </div>
+  <div class="score-panel" v-if="hasScores">
+    <div class="score-header">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      <span>实时评分</span>
     </div>
-    
-    <div v-if="totalScore" class="mt-4 pt-3 border-t">
-      <div class="flex justify-between items-center">
-        <span class="font-semibold text-gray-800">综合得分</span>
-        <span class="text-xl font-bold text-blue-600">{{ totalScore.toFixed(1) }}</span>
+    <div class="score-bars">
+      <div v-for="d in dims" :key="d.key" class="score-row">
+        <span class="dim-label">{{ d.label }}</span>
+        <div class="dim-bar-track">
+          <div class="dim-bar-fill" :class="barColor(scores[d.key])" :style="{ width: `${(scores[d.key] || 0) * 10}%` }"></div>
+        </div>
+        <span class="dim-val" :class="textColor(scores[d.key])">{{ scores[d.key] || 0 }}</span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-interface Scores {
-  correctness: number
-  depth: number
-  logic: number
-  practice: number
-}
+const props = defineProps<{ scores: Record<string, number> | null }>()
 
-const props = defineProps<{
-  scores: Partial<Scores>
-}>()
-
-const dimensions = [
+const dims = [
   { key: 'correctness', label: '正确性' },
   { key: 'depth', label: '深度' },
   { key: 'logic', label: '逻辑' },
-  { key: 'practice', label: '实践' }
+  { key: 'practice', label: '实践' },
 ]
 
-const totalScore = computed(() => {
-  const values = Object.values(props.scores).filter(v => typeof v === 'number')
-  if (values.length === 0) return null
-  return values.reduce((a, b) => a + b, 0) / values.length
+const hasScores = computed(() => {
+  if (!props.scores) return false
+  return Object.values(props.scores).some(v => typeof v === 'number' && v > 0)
 })
 
-const getScoreColor = (score: number) => {
-  if (score >= 8) return 'text-green-600'
-  if (score >= 6) return 'text-yellow-600'
-  return 'text-red-600'
-}
-
-const getProgressColor = (score: number) => {
-  if (score >= 8) return 'bg-green-500'
-  if (score >= 6) return 'bg-yellow-500'
-  return 'bg-red-500'
-}
+const barColor = (s: number) => s >= 8 ? 'bg-emerald-500' : s >= 6 ? 'bg-amber-500' : 'bg-red-500'
+const textColor = (s: number) => s >= 8 ? 'text-emerald-600' : s >= 6 ? 'text-amber-600' : 'text-red-600'
 </script>
+
+<style scoped>
+.score-panel {
+  background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 10px;
+  padding: 10px 14px; min-width: 160px; animation: fadeSlideIn 0.3s ease;
+}
+.score-header {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 600; color: #92400E; margin-bottom: 8px;
+}
+.score-bars { display: flex; flex-direction: column; gap: 4px; }
+.score-row { display: flex; align-items: center; gap: 6px; }
+.dim-label { font-size: 10px; color: #6B7280; width: 28px; flex-shrink: 0; }
+.dim-bar-track { flex: 1; height: 3px; background: #FDE68A; border-radius: 2px; overflow: hidden; }
+.dim-bar-fill { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+.dim-val { font-size: 10px; font-weight: 700; width: 18px; text-align: right; }
+</style>
