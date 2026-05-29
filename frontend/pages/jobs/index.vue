@@ -61,30 +61,32 @@
   </div>
 </template>
 
-<script setup>
-import { ref } from 'vue'
+<script setup lang="ts">
+const { $api } = useNuxtApp()
 
-const jobs = ref([
-  { id: 1, title: '前端开发工程师', description: '负责公司前端架构设计，优化性能', requirements: 'Vue3, React, TypeScript, Webpack', created_at: '2025-01-01' },
-  { id: 2, title: '后端开发工程师', description: '负责后端API开发，数据库设计', requirements: 'Python, FastAPI, PostgreSQL, Redis', created_at: '2025-01-02' }
-])
-
+const jobs = ref<any[]>([])
 const modalVisible = ref(false)
 const isEdit = ref(false)
-const form = ref({ id: null, title: '', description: '', requirements: '' })
+const form = ref<any>({ id: null, title: '', description: '', requirements: '' })
+
+const fetchJobs = async () => {
+  try {
+    const res = await $api.get('/jobs')
+    jobs.value = res.data.data?.items || res.data.data || []
+  } catch (e) { console.error(e) }
+}
 
 const openCreateModal = () => {
   isEdit.value = false
   form.value = { id: null, title: '', description: '', requirements: '' }
   modalVisible.value = true
 }
-const openEditModal = (job) => {
+const openEditModal = (job: any) => {
   isEdit.value = true
   form.value = { ...job }
   modalVisible.value = true
 }
 const closeModal = () => { modalVisible.value = false }
-const { $api } = useNuxtApp()
 
 const submitForm = async () => {
   if (!form.value.title.trim()) return alert('请填写岗位名称')
@@ -106,4 +108,6 @@ const deleteJob = async (id) => {
     await fetchJobs()
   } catch (e) { alert('删除失败') }
 }
+
+onMounted(fetchJobs)
 </script>

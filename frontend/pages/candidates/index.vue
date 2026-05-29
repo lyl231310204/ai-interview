@@ -64,32 +64,20 @@
   </div>
 </template>
 
-<script setup>
-import { ref } from 'vue'
+<script setup lang="ts">
+const { $api } = useNuxtApp()
 
-// 模拟数据
-const candidates = ref([
-  {
-    id: 1,
-    name: '张三',
-    email: 'zhangsan@example.com',
-    phone: '13800138000',
-    resume_text: '5年经验前端，精通Vue3、React',
-    created_at: '2025-01-10'
-  },
-  {
-    id: 2,
-    name: '李四',
-    email: 'lisi@example.com',
-    phone: '13900139000',
-    resume_text: '3年后端开发，熟悉Python FastAPI',
-    created_at: '2025-01-12'
-  }
-])
-
+const candidates = ref<any[]>([])
 const modalVisible = ref(false)
 const isEdit = ref(false)
-const form = ref({ id: null, name: '', email: '', phone: '', resume_text: '' })
+const form = ref<any>({ id: null, name: '', email: '', phone: '', resume_text: '' })
+
+const fetchCandidates = async () => {
+  try {
+    const res = await $api.get('/candidates')
+    candidates.value = res.data.data?.items || res.data.data || []
+  } catch (e) { console.error(e) }
+}
 
 const openCreateModal = () => {
   isEdit.value = false
@@ -97,17 +85,13 @@ const openCreateModal = () => {
   modalVisible.value = true
 }
 
-const openEditModal = (candidate) => {
+const openEditModal = (candidate: any) => {
   isEdit.value = true
   form.value = { ...candidate }
   modalVisible.value = true
 }
 
-const closeModal = () => {
-  modalVisible.value = false
-}
-
-const { $api } = useNuxtApp()
+const closeModal = () => { modalVisible.value = false }
 
 const submitForm = async () => {
   if (!form.value.name.trim()) return alert('请填写姓名')
@@ -132,4 +116,6 @@ const deleteCandidate = async (id) => {
     await fetchCandidates()
   } catch (e) { alert('删除失败') }
 }
+
+onMounted(fetchCandidates)
 </script>
