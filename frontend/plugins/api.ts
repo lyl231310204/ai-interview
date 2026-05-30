@@ -11,16 +11,16 @@ export default defineNuxtPlugin(() => {
   // 响应拦截器：统一包装为 { code, message, data }
   api.interceptors.response.use(
     (response) => {
-      // 列表接口返回数组时包装成 { items: [...] }，单对象直接透传
+      // 204 No Content 或其他空响应直接返回
+      if (response.status === 204 || !response.data) {
+        response.data = { code: 0, message: 'success', data: null }
+        return response
+      }
       let wrapped = response.data
       if (Array.isArray(response.data)) {
         wrapped = { items: response.data, total: response.data.length }
       }
-      response.data = {
-        code: 0,
-        message: 'success',
-        data: wrapped,
-      }
+      response.data = { code: 0, message: 'success', data: wrapped }
       return response
     },
     (error) => {
