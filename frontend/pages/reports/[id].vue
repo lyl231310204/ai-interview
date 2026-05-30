@@ -120,7 +120,12 @@ onMounted(async () => {
     const res = await $api.get(`/reports/${route.params.id}`)
     report.value = res.data.data
     nextTick(() => drawRing(overallScore.value))
-  } catch (e) { error.value = '加载报告失败，请确认面试已完成' }
+  } catch (e: any) {
+    console.error('报告加载失败:', e)
+    const detail = e?.response?.data?.detail || e?.message || '请求失败'
+    const status = e?.response?.status || ''
+    error.value = `加载报告失败 (${status}: ${detail})`
+  }
   finally { loading.value = false }
 })
 
