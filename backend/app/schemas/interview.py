@@ -47,3 +47,4 @@ class ChatResponse(BaseModel):
     user_message: str
     assistant_response: str
     message_id: int
+    scores: Optional[dict] = None

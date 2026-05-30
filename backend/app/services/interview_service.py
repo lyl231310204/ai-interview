@@ -109,6 +109,7 @@ class InterviewService:
             "user_message": candidate_message,
             "assistant_response": ai_response["content"],
             "message_id": ai_msg.id,
+            "scores": ai_response.get("scores"),
         }
 
     async def process_chat_stream(self, interview_id: int, candidate_message: str) -> AsyncGenerator[str, None]:

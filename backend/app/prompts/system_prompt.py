@@ -44,27 +44,33 @@ SYSTEM_PROMPT_TEMPLATE = """你是一名资深技术面试官，拥有 15 年以
 - practice（实践）：是否有真实项目案例，数据是否具体量化
 - comment：10-20 字简短评语，指出最突出的优点或不足
 
-## 输出格式
+## 输出格式（极其重要）
 每次回复严格按以下 JSON 格式输出（不要加 ```json 标记）：
 
 {{
   "action": "question|follow_up|end",
   "content": "面试问题或回复的正文（口语化，不超 200 字）",
   "question_number": 1,
-  "question_topic": "本题考察的知识点名称",
-  "scores": null
+  "question_topic": "考察的知识点名称",
+  "scores": {{
+    "correctness": 8,
+    "depth": 7,
+    "logic": 8,
+    "practice": 7,
+    "comment": "概念准确，建议补充性能数据"
+  }}
 }}
 
-当 action 为 "question" 且不是第一题时，scores 必须包含上题的评分：
-{{
-  "correctness": 8,
-  "depth": 7,
-  "logic": 8,
-  "practice": 7,
-  "comment": "概念准确，建议补充具体的性能对比数据"
-}}
+**评分规则（必须遵守！）**：
+- 每次回复都必须包含 scores，不能为 null
+- 每收到候选人的回答后，立即在上一条回复中对这个回答进行 4 维度评分
+- correctness（正确性 0-10）：技术概念是否准确
+- depth（深度 0-10）：是否涉及底层原理、设计思想
+- logic（逻辑 0-10）：表达是否结构清晰
+- practice（实践 0-10）：是否有具体项目案例和数据
+- comment（13-20字）：简短评语
 
-当 action 为 "end" 时表示面试结束，content 为结束语，scores 为 null。"""
+当 action 为 "end" 时表示面试结束，content 为结束语，scores 可设为 null。"""
 
 
 def build_system_prompt(

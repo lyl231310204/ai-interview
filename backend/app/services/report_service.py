@@ -1,24 +1,17 @@
 """
-报告生成服务 —— 调用 Claude API 生成终评报告。
+报告生成服务 —— 根据面试中的实际评分数据聚合生成报告。
 """
-
-import json
-from anthropic import AsyncAnthropic
-from sqlalchemy.orm import Session
 from datetime import datetime
-
-from ..config import settings
+from sqlalchemy.orm import Session
 from ..models import Interview, Job, Candidate
-from ..models.message import Message
-from ..prompts.report_prompts import build_report_prompt
+from ..models.message import Message, MessageRole
 
 
 class ReportService:
-    """报告生成器。"""
+    """报告生成器 —— 基于实际面试数据聚合。"""
 
     def __init__(self, db: Session):
         self.db = db
-        self.client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
 
     async def generate(self, interview_id: int) -> dict:
         interview = self.db.query(Interview).filter(Interview.id == interview_id).first()
@@ -34,67 +27,165 @@ class ReportService:
             .all()
         )
 
+        # 提取所有有评分的消息
+        scored_messages = [m for m in messages if m.role == MessageRole.INTERVIEWER and m.scores and isinstance(m.scores, dict)]
+
+        # 聚合各维度平均分
+        dims = ["correctness", "depth", "logic", "practice"]
+        dim_labels = {"correctness": "正确性", "depth": "深度", "logic": "逻辑", "practice": "实践"}
+        aggregated = {d: 0.0 for d in dims}
+        question_details = []
+
+        for m in scored_messages:
+            q_num = m.question_number or 0
+            answer_msg = _find_answer(messages, q_num)
+            sc = m.scores
+            question_details.append({
+                "question_number": q_num,
+                "question": m.content[:200],
+                "answer": answer_msg[:300] if answer_msg else "（未找到回答）",
+                "scores": {d: sc.get(d, 0) for d in dims},
+                "comment": sc.get("comment", ""),
+            })
+            for d in dims:
+                if isinstance(sc.get(d), (int, float)):
+                    aggregated[d] += sc[d]
+
+        n = len(scored_messages) or 1
+        for d in dims:
+            aggregated[d] = round(aggregated[d] / n, 1)
+
+        # 映射到报告维度
+        tech = round((aggregated["correctness"] * 0.5 + aggregated["depth"] * 0.3 + aggregated["practice"] * 0.2), 1)
+        comm = round(aggregated["logic"], 1)
+        learn = round((aggregated["depth"] * 0.4 + aggregated["correctness"] * 0.3 + aggregated["practice"] * 0.3), 1)
+        match_score = round((aggregated["correctness"] * 0.3 + aggregated["depth"] * 0.2 + aggregated["logic"] * 0.2 + aggregated["practice"] * 0.3), 1)
+
+        # 录用建议
+        overall = round((tech + comm + learn + match_score) / 4, 1)
+        if overall >= 8.5:
+            recommendation = "强烈推荐"
+        elif overall >= 7:
+            recommendation = "推荐"
+        elif overall >= 5:
+            recommendation = "保留"
+        else:
+            recommendation = "不推荐"
+
         # 计算时长
         duration = "约30分钟"
-        if interview.started_at:
-            delta = datetime.utcnow() - interview.started_at
-            minutes = int(delta.total_seconds() // 60)
+        if interview.started_at and interview.completed_at:
+            minutes = int((interview.completed_at - interview.started_at).total_seconds() // 60)
+            duration = f"约{minutes}分钟"
+        elif interview.started_at:
+            minutes = int((datetime.utcnow() - interview.started_at).total_seconds() // 60)
             duration = f"约{minutes}分钟"
 
-        total_questions = len([m for m in messages if m.role == "interviewer"])
+        total_q = len([m for m in messages if m.role == MessageRole.INTERVIEWER])
 
-        # 构建 Q&A 记录
-        qa_parts = []
-        for msg in messages:
-            if msg.role == "interviewer" and msg.question_number:
-                answer = _find_answer(messages, msg.question_number)
-                topic = msg.scores.get("topic", "") if msg.scores else ""
-                qa_parts.append(
-                    f"第{msg.question_number}题 | {topic}\n"
-                    f"面试官：{msg.content}\n"
-                    f"候选人：{answer}\n"
-                )
-        qa_records = "\n---\n".join(qa_parts)
+        # 维度详情
+        dimension_details = {
+            "technical": {
+                "score": tech,
+                "strengths": _strengths("technical", tech),
+                "weaknesses": _weaknesses("technical", tech),
+                "summary": _dim_summary("technical", tech),
+            },
+            "communication": {
+                "score": comm,
+                "strengths": _strengths("communication", comm),
+                "weaknesses": _weaknesses("communication", comm),
+                "summary": _dim_summary("communication", comm),
+            },
+            "learning": {
+                "score": learn,
+                "strengths": _strengths("learning", learn),
+                "weaknesses": _weaknesses("learning", learn),
+                "summary": _dim_summary("learning", learn),
+            },
+            "match": {
+                "score": match_score,
+                "strengths": _strengths("match", match_score),
+                "weaknesses": _weaknesses("match", match_score),
+                "summary": _dim_summary("match", match_score),
+            },
+        }
 
-        prompt = build_report_prompt(
-            job_title=job.title,
-            candidate_name=candidate.name,
-            duration=duration,
-            total_questions=total_questions,
-            qa_records=qa_records,
-        )
+        # 关键问答摘要
+        key_questions_summary = []
+        for qd in question_details[:5]:
+            q_quality = "优秀" if qd["scores"].get("correctness", 0) >= 8 else ("良好" if qd["scores"].get("correctness", 0) >= 6 else "一般")
+            key_questions_summary.append({
+                "question": qd["question"][:100],
+                "answer_quality": q_quality,
+                "key_takeaway": qd.get("comment", f'正确性 {qd["scores"].get("correctness",0)}/10'),
+            })
 
-        response = await self.client.messages.create(
-            model=settings.ANTHROPIC_MODEL,
-            max_tokens=4096,
-            temperature=0.3,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        # 综合评语
+        if n >= 3:
+            summary = f"候选人在本次技术面试中完成了 {total_q} 道题目的考察，综合评分 {overall} 分。"
+            best_dim = max(dimension_details.items(), key=lambda x: x[1]["score"])
+            worst_dim = min(dimension_details.items(), key=lambda x: x[1]["score"])
+            summary += f"在{dim_label(best_dim[0])}方面表现最为突出（{best_dim[1]['score']}分），{dim_label(worst_dim[0])}方面仍有提升空间。"
+            summary += f"整体评估：{recommendation}。"
+        else:
+            summary = f"候选人完成了 {total_q} 道题目。由于面试轮次较少，评分仅供参考。综合评估：{recommendation}。"
 
-        content = _extract_text_block(response)
-        return _parse_report_json(content)
+        return {
+            "overall_score": {
+                "technical": tech,
+                "communication": comm,
+                "learning": learn,
+                "match": match_score,
+                "recommendation": recommendation,
+                "summary": summary,
+            },
+            "dimension_details": dimension_details,
+            "key_questions_summary": key_questions_summary,
+            "next_steps": _next_steps(recommendation),
+        }
 
 
-def _parse_report_json(content: str) -> dict:
-    """从 AI 回复中提取 JSON。"""
-    if "```" in content:
-        content = content.split("```json")[-1].split("```")[0].strip()
-    elif not content.startswith("{"):
-        idx = content.find("{")
-        if idx != -1:
-            content = content[idx:]
-    return json.loads(content)
+def _dim_label(k: str) -> str:
+    return {"technical": "技术能力", "communication": "沟通表达", "learning": "学习潜力", "match": "岗位匹配"}.get(k, k)
 
 
-def _find_answer(messages: list, question_number: int) -> str:
+def _strengths(k: str, score: float) -> list:
+    if score >= 8:
+        return [f"在{_dim_label(k)}维度的表现突出，展现了扎实的专业功底"]
+    if score >= 7:
+        return [f"{_dim_label(k)}能力良好，具备基本的岗位胜任力"]
+    return []
+
+
+def _weaknesses(k: str, score: float) -> list:
+    if score < 6:
+        return [f"{_dim_label(k)}方面建议加强专项训练和实践"]
+    if score < 7:
+        return [f"{_dim_label(k)}仍有提升空间，建议多做相关项目积累经验"]
+    return []
+
+
+def _dim_summary(k: str, score: float) -> str:
+    if score >= 8:
+        return f"该维度表现优秀，候选人具备较强的{_dim_label(k)}能力。"
+    if score >= 7:
+        return f"该维度表现良好，{_dim_label(k)}水平符合岗位基本要求。"
+    return f"该维度有待提升，建议进一步强化{_dim_label(k)}相关技能。"
+
+
+def _next_steps(recommendation: str) -> str:
+    if recommendation == "强烈推荐":
+        return "建议尽快安排终面或 HR 面，进一步考察候选人的团队协作和文化匹配度。"
+    if recommendation == "推荐":
+        return "建议进入下一轮面试，重点考察候选人在系统设计和项目管理方面的能力。"
+    if recommendation == "保留":
+        return "建议安排补充笔试或技术作业，进一步验证候选人在薄弱维度的实际水平。"
+    return "当前评估结果不建议继续推进。如有特殊考虑，可安排加试。"
+
+
+def _find_answer(messages: list, question_number: int) -> str | None:
     for msg in messages:
-        if msg.role == "candidate" and msg.question_number == question_number:
+        if msg.role == MessageRole.CANDIDATE and msg.question_number == question_number:
             return msg.content
-    return "（未找到回答）"
-
-
-def _extract_text_block(response) -> str:
-    for block in response.content:
-        if block.type == "text" and block.text:
-            return block.text
-    return response.content[-1].text or ""
+    return None
