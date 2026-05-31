@@ -1,67 +1,63 @@
 <template>
-  <div class="app-layout">
+  <div v-if="!auth.isLoggedIn" class="loading">加载中…</div>
+  <div v-else class="app-layout">
     <header class="app-header">
-        <div class="header-left">
-          <span class="logo">🤖</span>
-          <span class="title">{{ isHR ? 'AI 面试系统' : 'AI 面试陪练' }}</span>
-        </div>
-        <div class="header-right">
-          <span>{{ isHR ? 'HR 管理员' : '求职者' }}</span>
-          <button @click="logout">退出登录</button>
-        </div>
-      </header>
-
-      <div class="layout-body">
-        <aside class="sidebar">
-          <nav>
-            <NuxtLink to="/" class="menu-item" :class="{ active: $route.path === '/' }">
-              <span>🏠</span> 首页
-            </NuxtLink>
-            <template v-if="isHR">
-              <NuxtLink to="/jobs" class="menu-item" :class="{ active: $route.path.startsWith('/jobs') }">
-                <span>📋</span> 岗位管理
-              </NuxtLink>
-              <NuxtLink to="/candidates" class="menu-item" :class="{ active: $route.path.startsWith('/candidates') }">
-                <span>👥</span> 候选人管理
-              </NuxtLink>
-            </template>
-            <template v-else>
-              <NuxtLink to="/jobs" class="menu-item" :class="{ active: $route.path.startsWith('/jobs') }">
-                <span>🎯</span> 目标岗位
-              </NuxtLink>
-            </template>
-            <NuxtLink to="/interviews" class="menu-item" :class="{ active: $route.path.startsWith('/interviews') }">
-              <span>{{ isHR ? '🎯' : '📝' }}</span> {{ isHR ? '面试记录' : '练习记录' }}
-            </NuxtLink>
-          </nav>
-        </aside>
-
-        <main class="main-content">
-          <slot />
-        </main>
+      <div class="header-left">
+        <span class="logo">🤖</span>
+        <span class="title">{{ auth.isHR ? 'AI 面试系统' : 'AI 面试陪练' }}</span>
       </div>
+      <div class="header-right">
+        <span>{{ auth.isHR ? 'HR 管理员' : '求职者' }}</span>
+        <button @click="logout">退出登录</button>
+      </div>
+    </header>
+
+    <div class="layout-body">
+      <aside class="sidebar">
+        <nav>
+          <NuxtLink to="/" class="menu-item" :class="{ active: $route.path === '/' }">
+            <span>🏠</span> 首页
+          </NuxtLink>
+          <template v-if="auth.isHR">
+            <NuxtLink to="/jobs" class="menu-item" :class="{ active: $route.path.startsWith('/jobs') }">
+              <span>📋</span> 岗位管理
+            </NuxtLink>
+            <NuxtLink to="/candidates" class="menu-item" :class="{ active: $route.path.startsWith('/candidates') }">
+              <span>👥</span> 候选人管理
+            </NuxtLink>
+          </template>
+          <template v-else>
+            <NuxtLink to="/jobs" class="menu-item" :class="{ active: $route.path.startsWith('/jobs') }">
+              <span>🎯</span> 目标岗位
+            </NuxtLink>
+          </template>
+          <NuxtLink to="/interviews" class="menu-item" :class="{ active: $route.path.startsWith('/interviews') }">
+            <span>{{ auth.isHR ? '🎯' : '📝' }}</span> {{ auth.isHR ? '面试记录' : '练习记录' }}
+          </NuxtLink>
+        </nav>
+      </aside>
+
+      <main class="main-content">
+        <slot />
+      </main>
     </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 const router = useRouter()
+const auth = useAuthStore()
 
-// 简单直接：只从 localStorage 读
-const isHR = ref(false)
-
-// mounted 时读一次
-onMounted(() => {
-  const role = localStorage.getItem('role') || ''
-  isHR.value = role === 'hr'
-})
+onMounted(() => { auth.restore() })
 
 const logout = () => {
-  localStorage.clear()
+  auth.logout()
   router.push('/login')
 }
 </script>
 
 <style scoped>
+.loading { display:flex; align-items:center; justify-content:center; height:100vh; color:#A1A1AA; font-size:14px; }
 .app-layout { min-height: 100vh; background: #f3f4f6; display: flex; flex-direction: column; }
 .app-header { height: 60px; background: white; box-shadow: 0 1px 4px rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 10; }
 .header-left { display: flex; align-items: center; gap: 12px; }

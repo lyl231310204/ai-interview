@@ -139,10 +139,7 @@ const handleSubmit = async () => {
       loading.value = false
       return
     }
-    localStorage.setItem('role', user.role)
-    localStorage.setItem('token', 'ok')
-    localStorage.setItem('user', JSON.stringify({ id: user.id, username: user.username }))
-    // 整页刷新，确保 layout 全新挂载
+    useAuthStore().login(user.role, user.username)
     window.location.href = '/'
   } catch (e: any) {
     error.value = e?.response?.data?.detail || '登录失败，请重试'
