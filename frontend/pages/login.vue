@@ -111,10 +111,14 @@ const handleSubmit = async () => {
     }
     const res = await $api.post('/auth/login', { username: username.value, password: password.value })
     const user = res.data.data
+    // 校验返回的角色是否匹配选择的身份
+    if (user.role !== selectedRole.value) {
+      error.value = `该账号是${user.role === 'hr' ? 'HR/面试官' : '求职者'}账号，请选择正确的身份登录`
+      return
+    }
     localStorage.setItem('role', user.role)
     localStorage.setItem('token', 'ok')
     localStorage.setItem('user', JSON.stringify({ id: user.id, username: user.username }))
-    // 同时写 cookie 供 SSR 读取
     document.cookie = `role=${user.role};path=/;max-age=86400`
     router.push('/')
   } catch (e: any) {
