@@ -86,7 +86,12 @@ const submit = async () => {
       }
     }
     const r = await $api.post('/auth/login', { username: u, password: p })
-    const user = findUser(r.data)
+    const raw = r.data
+    console.log('raw:', JSON.stringify(raw))
+    console.log('raw.data:', JSON.stringify(raw?.data))
+    console.log('raw.data.role:', raw?.data?.role)
+    const user = raw?.data?.role ? raw.data : raw?.role ? raw : null
+    console.log('user:', JSON.stringify(user))
     if (!user?.role) { error.value = '登录失败：无法获取用户信息'; loading.value = false; return }
     if (user.role !== role.value) {
       error.value = `该账号是「${user.role === 'hr' ? '面试官/HR' : '求职者'}」账号，请切换身份后登录`
