@@ -48,21 +48,17 @@
 
 <script setup lang="ts">
 const router = useRouter()
-const isHR = ref(false)
 
-onMounted(() => {
-  let role = localStorage.getItem('role') || ''
-  if (!role) {
-    const m = document.cookie.match(/(?:^|;\s*)role=([^;]*)/)
-    role = m ? m[1] : ''
-  }
-  isHR.value = role === 'hr'
-})
+const getRole = () => {
+  if (typeof window === 'undefined') return ''
+  let r = localStorage.getItem('role') || ''
+  if (!r) { const m = document.cookie.match(/(?:^|;\s*)role=([^;]*)/); r = m ? m[1] : '' }
+  return r
+}
+const isHR = computed(() => getRole() === 'hr')
 
 const logout = () => {
-  localStorage.removeItem('token')
-  localStorage.removeItem('user')
-  localStorage.removeItem('role')
+  localStorage.clear()
   document.cookie = 'role=;path=/;max-age=0'
   router.push('/login')
 }
