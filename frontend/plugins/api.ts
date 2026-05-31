@@ -21,7 +21,7 @@ export default defineNuxtPlugin(() => {
       const match = document.cookie.match(/(?:^|;\s*)role=([^;]*)/)
       role = match ? match[1] : ''
     }
-    if (role && reqConfig.url && !reqConfig.url!.startsWith('/api/auth') && !reqConfig.url!.startsWith('/api/invite')) {
+    if (role && reqConfig.url && !reqConfig.url!.includes('auth') && !reqConfig.url!.includes('invite')) {
       const sep = reqConfig.url!.includes('?') ? '&' : '?'
       reqConfig.url = `${reqConfig.url}${sep}role=${role}`
     }
