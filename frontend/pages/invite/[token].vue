@@ -92,8 +92,10 @@ const startInterview = async () => {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     const iid = res.data.data.interview_id
-    // 跳转到面试页（使用 interview 布局）
-    window.location.href = `/interviews/${iid}`
+    // 设置角色并跳转面试页
+    localStorage.setItem('role', 'seeker')
+    localStorage.setItem('token', 'ok')
+    window.location.href = `/interviews/${iid}?role=seeker`
   } catch (e: any) {
     error.value = e?.response?.data?.detail || '启动面试失败'
     if (error.value.includes('已被使用')) step.value = 'error'
