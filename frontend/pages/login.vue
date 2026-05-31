@@ -60,6 +60,9 @@ const confirm = ref('')
 const loading = ref(false)
 const error = ref('')
 
+// 兼容各种拦截器包装层级
+const findUser = (d: any) => d?.data?.role ? d.data : d?.data?.data?.role ? d.data.data : d?.role ? d : null
+
 const submit = async () => {
   error.value = ''
   const u = username.value.trim()
@@ -83,7 +86,8 @@ const submit = async () => {
       }
     }
     const r = await $api.post('/auth/login', { username: u, password: p })
-    const user = r.data.data
+    const user = findUser(r.data)
+    if (!user?.role) { error.value = '登录失败：无法获取用户信息'; loading.value = false; return }
     if (user.role !== role.value) {
       error.value = `该账号是「${user.role === 'hr' ? '面试官/HR' : '求职者'}」账号，请切换身份后登录`
       loading.value = false
