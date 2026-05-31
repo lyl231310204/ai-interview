@@ -32,6 +32,7 @@
           <input v-model="confirm" type="password" placeholder="再次输入密码" />
         </template>
 
+        <p v-if="mode === 'register'" class="role-note">注：账号将注册为「{{ role === 'hr' ? '面试官/HR' : '求职者' }}」角色</p>
         <button class="submit-btn" :disabled="loading" @click="submit">
           {{ loading ? '...' : (mode === 'register' ? '注册' : '登录') }}
         </button>
@@ -82,14 +83,8 @@ const submit = async () => {
       }
     }
     const r = await $api.post('/auth/login', { username: u, password: p })
-    console.log('Login:', r.data)
     const user = r.data.data
-    // 校验返回角色是否匹配选择的身份
-    if (user.role !== role.value) {
-      error.value = `该账号是「${user.role === 'hr' ? '面试官/HR' : '求职者'}」账号，请切换身份后登录`
-      loading.value = false
-      return
-    }
+    console.log('Login OK, role:', user.role)
     useAuthStore().login(user.role, user.username)
     window.location.href = '/'
   } catch (e: any) {
