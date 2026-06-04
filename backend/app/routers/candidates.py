@@ -14,11 +14,12 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @router.post("/", response_model=CandidateResponse, status_code=status.HTTP_201_CREATED)
 def create_candidate(candidate: CandidateCreate, db: Session = Depends(get_db)):
-    db_candidate = db.query(Candidate).filter(Candidate.email == candidate.email).first()
-    if db_candidate:
-        raise HTTPException(status_code=400, detail="邮箱已被注册")
-    
-    new_candidate = Candidate(**candidate.dict())
+    if candidate.email:
+        db_candidate = db.query(Candidate).filter(Candidate.email == candidate.email).first()
+        if db_candidate:
+            raise HTTPException(status_code=400, detail="邮箱已被注册")
+
+    new_candidate = Candidate(**candidate.model_dump())
     db.add(new_candidate)
     db.commit()
     db.refresh(new_candidate)
