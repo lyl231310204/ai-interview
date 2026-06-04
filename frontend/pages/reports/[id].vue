@@ -132,7 +132,7 @@ const badgeClass = computed(() => {
 onMounted(async () => {
   try {
     const res = await $api.get(`/reports/${route.params.id}`)
-    report.value = res.data.data
+    report.value = res.data
     nextTick(() => drawRing(overallScore.value))
   } catch (e: any) {
     console.error('报告加载失败:', e)

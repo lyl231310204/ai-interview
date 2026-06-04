@@ -53,7 +53,7 @@ const fileInput = ref<HTMLInputElement>()
 const selectedJob = computed(() => jobs.value.find(j => j.id === Number(selectedJobId.value)))
 
 const fetchJobs = async () => {
-  try { jobs.value = ((await $api.get('/jobs')).data.data?.items || (await $api.get('/jobs')).data.data || []) }
+  try { const data = (await $api.get('/jobs')).data; jobs.value = Array.isArray(data) ? data : [] }
   catch (err) { alert('无法连接后端服务') }
 }
 
@@ -69,7 +69,7 @@ const startInterview = async () => {
   try {
     // 自动创建候选人
     const cRes = await $api.post('/candidates', { name: candidateName.value.trim() })
-    const candidateId = cRes.data.data.id
+    const candidateId = cRes.data.id
 
     // 上传简历
     if (selectedFile.value) {
@@ -79,7 +79,7 @@ const startInterview = async () => {
 
     // 创建面试
     const ivRes = await $api.post('/interviews', { job_id: Number(selectedJobId.value), candidate_id: candidateId })
-    router.push(`/interviews/${ivRes.data.data.id}`)
+    router.push(`/interviews/${ivRes.data.id}`)
   } catch (e: any) { alert('创建失败：' + (e?.response?.data?.detail || '请重试')) }
   finally { creating.value = false }
 }

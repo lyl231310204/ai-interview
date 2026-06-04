@@ -115,7 +115,7 @@ const genInvite = async () => {
   genLoading.value = true
   try {
     const res = await $api.post(`/jobs/${inviteJob.value.id}/invite`)
-    inviteLink.value = window.location.origin + res.data.data.url
+    inviteLink.value = window.location.origin + res.data.url
   } catch(e) { alert('生成失败') }
   finally { genLoading.value = false }
 }

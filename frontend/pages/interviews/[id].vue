@@ -157,7 +157,7 @@ const sendMessage = async (content: string) => {
   } catch (e: any) {
     try {
       const fb = await $api.post('/interviews/chat', { interview_id: interviewId.value, message: content })
-      full = fb.data.data.assistant_response || ''; scores = fb.data.data.scores; mid = fb.data.data.message_id
+      full = fb.data.assistant_response || ''; scores = fb.data.scores; mid = fb.data.message_id
       streamText.value = full
     } catch (e2) { console.error(e2) }
   } finally { streaming.value = false; loading.value = false }
@@ -179,8 +179,8 @@ const endInterview = async () => {
 const load = async () => {
   try {
     const [ir, mr] = await Promise.all([$api.get(`/interviews/${interviewId.value}`), $api.get(`/interviews/${interviewId.value}/messages`)])
-    interviewStatus.value = ir.data.data.status || ''
-    chatMessages.value = (mr.data.data || []).map((m: any) => ({ ...m, role: m.role === 'CANDIDATE' || m.role === 'INTERVIEWER' ? m.role : String(m.role || '').toUpperCase() }))
+    interviewStatus.value = ir.data.status || ''
+    const msgData = mr.data; chatMessages.value = (Array.isArray(msgData) ? msgData : []).map((m: any) => ({ ...m, role: m.role === 'CANDIDATE' || m.role === 'INTERVIEWER' ? m.role : String(m.role || '').toUpperCase() }))
     for (let i = chatMessages.value.length - 1; i >= 0; i--) { if (chatMessages.value[i].scores) { latestScores.value = chatMessages.value[i].scores; break } }
     const ai = chatMessages.value.filter((m: any) => m.role === 'INTERVIEWER')
     if (ai.length && ai[ai.length - 1].scores?.topic) currentTopic.value = ai[ai.length - 1].scores.topic

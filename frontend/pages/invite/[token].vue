@@ -91,7 +91,7 @@ const startInterview = async () => {
     const res = await $api.post(`/invite/${token.value}/start`, fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
-    const iid = res.data.data.interview_id
+    const iid = res.data.interview_id
     // 设置角色并跳转面试页
     localStorage.setItem('role', 'seeker')
     localStorage.setItem('token', 'ok')
@@ -106,7 +106,7 @@ const startInterview = async () => {
 onMounted(async () => {
   try {
     const res = await $api.get(`/invite/${token.value}`)
-    job.value = res.data.data?.job
+    job.value = res.data?.job
   } catch (e: any) {
     step.value = 'error'
     error.value = e?.response?.data?.detail || '邀请链接无效'

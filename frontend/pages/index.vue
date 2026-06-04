@@ -107,8 +107,8 @@ const scoreAvg = (s: any) => {
 onMounted(async () => {
   try {
     const [intRes, jobRes] = await Promise.all([$api.get('/interviews'),$api.get('/jobs')])
-    const ints: any[] = intRes.data.data||[]
-    const jobs: any[] = jobRes.data.data||[]
+    const ints: any[] = Array.isArray(intRes.data) ? intRes.data : []
+    const jobs: any[] = Array.isArray(jobRes.data) ? jobRes.data : []
     const scored = ints.filter((i:any)=>i.overall_score)
     hrStats.value = [
       { label:'岗位数量', value:jobs.length },

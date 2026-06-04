@@ -85,7 +85,7 @@ const uploading = ref(false)
 const fetchCandidates = async () => {
   try {
     const res = await $api.get('/candidates')
-    candidates.value = res.data.data?.items || res.data.data || []
+    const d = res.data; candidates.value = Array.isArray(d) ? d : []
   } catch (e) { console.error(e) }
 }
 
@@ -122,7 +122,7 @@ const submitForm = async () => {
       if (form.value.email) body.email = form.value.email
       if (form.value.phone) body.phone = form.value.phone
       const res = await $api.post('/candidates', body)
-      candidateId = res.data.data.id
+      candidateId = res.data.id
     }
     // 上传简历文件
     if (selectedFile.value && candidateId) {

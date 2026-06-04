@@ -81,7 +81,7 @@ const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('zh-CN') : '-'
 
 const fetchInterviews = async () => {
   loading.value = true
-  try { interviews.value = (await $api.get('/interviews')).data.data || [] }
+  try { const d = (await $api.get('/interviews')).data; interviews.value = Array.isArray(d) ? d : [] }
   catch (e) { console.error(e) }
   finally { loading.value = false }
 }
