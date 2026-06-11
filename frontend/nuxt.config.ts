@@ -3,10 +3,11 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   css: ['~/assets/css/main.css'],
   modules: ['@pinia/nuxt'],
+  app: {
+    baseURL: '/ai-interview/'
+  },
   nitro: {
-    output: {
-      dir: 'dist'
-    }
+    output: { dir: 'dist' }
   },
   runtimeConfig: {
     public: {
