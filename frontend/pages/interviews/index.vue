@@ -10,6 +10,17 @@
       </NuxtLink>
     </div>
 
+    <!-- 搜索过滤 -->
+    <div style="display:flex;gap:10px;margin-bottom:16px">
+      <input v-model="searchText" placeholder="搜索岗位名..." style="flex:1;padding:8px 12px;border:1px solid #E8E8ED;border-radius:8px;font-size:13px;max-width:200px" />
+      <select v-model="statusFilter" style="padding:8px 12px;border:1px solid #E8E8ED;border-radius:8px;font-size:13px">
+        <option value="">全部状态</option>
+        <option value="completed">已完成</option>
+        <option value="in_progress">进行中</option>
+        <option value="pending">待开始</option>
+      </select>
+    </div>
+
     <div v-if="loading" style="text-align:center;padding:60px;color:#9CA3AF">加载中…</div>
 
     <div v-else style="overflow-x: auto;">
@@ -26,7 +37,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="iv in interviews" :key="iv.id" style="border-bottom: 1px solid #e5e7eb;">
+          <tr v-for="iv in filteredInterviews" :key="iv.id" style="border-bottom: 1px solid #e5e7eb;">
             <td style="padding: 20px 24px; white-space: nowrap; font-size: 14px; color: #111827;">{{ iv.id }}</td>
             <td style="padding: 20px 24px; white-space: nowrap; font-size: 14px;font-weight:500;color:#111827;">{{ iv.job_title || '目标岗位#'+iv.job_id }}</td>
             <td style="padding: 20px 24px; white-space: nowrap; font-size: 14px; color: #6b7280;">{{ iv.candidate_name || '练习者#'+iv.candidate_id }}</td>
@@ -59,6 +70,20 @@
 const { $api } = useNuxtApp()
 const interviews = ref<any[]>([])
 const loading = ref(true)
+const searchText = ref('')
+const statusFilter = ref('')
+
+const filteredInterviews = computed(() => {
+  let list = interviews.value
+  if (searchText.value) {
+    const q = searchText.value.toLowerCase()
+    list = list.filter((i:any) => (i.job_title||'').toLowerCase().includes(q))
+  }
+  if (statusFilter.value) {
+    list = list.filter((i:any) => String(i.status||'').toLowerCase() === statusFilter.value)
+  }
+  return list
+})
 
 // Normalize status to lowercase
 const normalizeStatus = (s: string) => String(s || '').toLowerCase()
