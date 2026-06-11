@@ -9,6 +9,7 @@ from app.database import engine, Base
 from app.routers import jobs_router, candidates_router, interviews_router, reports_router, auth_router, invite_router, analytics_router, prompts_router, dev_router
 from app.services.prompt_manager import seed_prompts
 from app.database import SessionLocal
+from app.middleware.auth_middleware import AuthMiddleware
 
 
 @asynccontextmanager
@@ -24,6 +25,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="AI 智能面试系统", version="1.0.0", lifespan=lifespan)
 
+app.add_middleware(AuthMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
