@@ -3,9 +3,12 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   css: ['~/assets/css/main.css'],
   modules: ['@pinia/nuxt'],
+  nitro: {
+    preset: 'vercel'
+  },
   runtimeConfig: {
     public: {
-      apiBase: '/api'
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || '/api'
     }
   }
 })
