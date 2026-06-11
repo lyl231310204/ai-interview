@@ -1,0 +1,8 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": ".output/public",
+  "framework": "nuxt",
+  "env": {
+    "NUXT_PUBLIC_API_BASE": "https://your-app.railway.app/api"
+  }
+}
