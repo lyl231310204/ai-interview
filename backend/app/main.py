@@ -5,6 +5,7 @@ FastAPI 入口 —— 挂载路由、配置 CORS、创建数据库表。
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from app.database import engine, Base
 from app.routers import jobs_router, candidates_router, interviews_router, reports_router, auth_router, invite_router, analytics_router, prompts_router, dev_router, export_router
 from app.services.prompt_manager import seed_prompts
@@ -48,4 +49,10 @@ app.include_router(export_router, prefix="/api", tags=["数据导出"])
 
 @app.get("/api/health")
 def health_check():
-    return {"code": 0, "message": "ok"}
+    try:
+        db = SessionLocal()
+        db.execute(text("SELECT 1"))
+        db.close()
+        return {"code": 0, "message": "ok", "db": "connected"}
+    except Exception:
+        return {"code": 0, "message": "ok", "db": "disconnected"}
