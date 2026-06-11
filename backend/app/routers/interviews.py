@@ -3,6 +3,8 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List
 
+from app.services.agent_interview_service import AgentInterviewService
+
 from app.database import get_db
 from app.models import Interview, Job, Candidate
 from app.models.interview import InterviewStatus
@@ -108,6 +110,17 @@ async def chat_stream(chat_request: ChatRequest, db: Session = Depends(get_db)):
             yield f"data: ERROR: {str(e)}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+@router.post("/chat-v2", response_model=ChatResponse)
+async def chat_v2(chat_request: ChatRequest, db: Session = Depends(get_db)):
+    """基于多 Agent 架构的对话接口（推荐）。"""
+    service = AgentInterviewService(db)
+    try:
+        result = await service.process_chat(chat_request.interview_id, chat_request.message)
+        return ChatResponse(**result)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.post("/{interview_id}/end")

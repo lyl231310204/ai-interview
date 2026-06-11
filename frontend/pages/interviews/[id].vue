@@ -156,7 +156,7 @@ const sendMessage = async (content: string) => {
     }
   } catch (e: any) {
     try {
-      const fb = await $api.post('/interviews/chat', { interview_id: interviewId.value, message: content })
+      const fb = await $api.post('/interviews/chat-v2', { interview_id: interviewId.value, message: content })
       full = fb.data.assistant_response || ''; scores = fb.data.scores; mid = fb.data.message_id
       streamText.value = full
     } catch (e2) { console.error(e2) }
