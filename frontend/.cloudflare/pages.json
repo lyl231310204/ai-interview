@@ -1,0 +1,7 @@
+{
+  "build": {
+    "command": "npm run generate",
+    "output_directory": ".output/public"
+  },
+  "framework": "none"
+}
